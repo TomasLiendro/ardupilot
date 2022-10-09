@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AP_Common/AP_Common.h>
+#include <AP_Gripper/AP_Gripper.h>
 
 // Global parameter class.
 //
@@ -350,7 +351,7 @@ public:
         k_param_gcs4,          // stream rates
         k_param_gcs5,          // stream rates
         k_param_gcs6,          // stream rates
-        k_param_fence,         // vehicle fence
+        k_param_fence,         // vehicle fence - unused
         k_param_acro_yaw_rate,
     };
 
@@ -362,7 +363,7 @@ public:
     AP_Int16 sysid_my_gcs;
     AP_Int8 telem_delay;
 
-    AP_Int8  rtl_autoland;
+    AP_Enum<RtlAutoland> rtl_autoland;
 
     AP_Int8  crash_accel_threshold;
 
@@ -485,8 +486,10 @@ public:
     AP_Stats stats;
 #endif
 
+#if AP_ICENGINE_ENABLED
     // internal combustion engine control
     AP_ICEngine ice_control;
+#endif
 
     // RC input channels
     RC_Channels_Plane rc_channels;
@@ -511,7 +514,7 @@ public:
     // home reset altitude threshold
     AP_Int8 home_reset_threshold;
 
-#if GRIPPER_ENABLED == ENABLED
+#if AP_GRIPPER_ENABLED
     // Payload Gripper
     AP_Gripper gripper;
 #endif
@@ -545,6 +548,9 @@ public:
     AC_PID guidedHeading{5000.0,  0.0,   0.0, 0 ,  10.0,   5.0,  5.0 ,  5.0  , 0.2};
 #endif
 
+#if AP_SCRIPTING_ENABLED
+    AP_Follow follow;
+#endif
 
     AP_Float        fs_ekf_thresh;
 
@@ -556,6 +562,9 @@ public:
     AP_Int8         man_expo_rudder;
 
     AP_Int32        oneshot_mask;
+
+    // just to make compilation easier when all things are compiled out...
+    uint8_t unused_integer;
 };
 
 extern const AP_Param::Info var_info[];

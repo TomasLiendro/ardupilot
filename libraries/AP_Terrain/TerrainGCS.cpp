@@ -139,21 +139,10 @@ void AP_Terrain::send_request(mavlink_channel_t chan)
         return;
     }
 
-    // also request a larger set of up to 9 grids
-    for (int8_t x=-1; x<=1; x++) {
-        for (int8_t y=-1; y<=1; y++) {
-            Location loc2 = loc;
-            loc2.offset(x*TERRAIN_GRID_BLOCK_SIZE_X*0.7f*grid_spacing,
-                        y*TERRAIN_GRID_BLOCK_SIZE_Y*0.7f*grid_spacing);
-            struct grid_info info2;
-            calculate_grid_info(loc2, info2);            
-            if (request_missing(chan, info2)) {
-                return;
-            }
-        }
-    }
-
-    // check cache blocks that may have been setup by a TERRAIN_CHECK
+    // check cache blocks that may have been setup by a TERRAIN_CHECK,
+    // mission items, rally items, squares surrounding our current
+    // location, favourite holiday destination, scripting, height
+    // reference location, ....
     if (send_cache_request(chan)) {
         return;
     }
@@ -228,8 +217,8 @@ void AP_Terrain::send_terrain_report(mavlink_channel_t chan, const Location &loc
     Location current_loc;
     const AP_AHRS &ahrs = AP::ahrs();
     if (ahrs.get_location(current_loc) &&
-        height_amsl(ahrs.get_home(), home_terrain_height, false) &&
-        height_amsl(loc, terrain_height, false)) {
+        height_amsl(ahrs.get_home(), home_terrain_height) &&
+        height_amsl(loc, terrain_height)) {
         // non-zero spacing indicates we have data
         spacing = grid_spacing;
     } else if (extrapolate && have_current_loc_height) {
@@ -238,7 +227,7 @@ void AP_Terrain::send_terrain_report(mavlink_channel_t chan, const Location &loc
         terrain_height = last_current_loc_height;
     } else {
         // report terrain height if we can, but can't give current_height
-        height_amsl(loc, terrain_height, false);
+        height_amsl(loc, terrain_height);
     }
     uint16_t pending, loaded;
     get_statistics(pending, loaded);

@@ -28,7 +28,10 @@ const AP_Param::GroupInfo AP_BattMonitor_UAVCAN::var_info[] = {
     // @Description: Multiplier applied to all current related reports to allow for adjustment if no UAVCAN param access or current splitting applications
     // @Range: .1 10
     // @User: Advanced
-    AP_GROUPINFO("CURR_MULT", 27, AP_BattMonitor_UAVCAN, _curr_mult, 1.0),
+    AP_GROUPINFO("CURR_MULT", 30, AP_BattMonitor_UAVCAN, _curr_mult, 1.0),
+
+    // Param indexes must be between 30 and 39 to avoid conflict with other battery monitor param tables loaded by pointer
+
     AP_GROUPEND
 };
 
@@ -151,14 +154,10 @@ void AP_BattMonitor_UAVCAN::update_interim_state(const float voltage, const floa
     const uint32_t tnow = AP_HAL::micros();
 
     if (!_has_battery_info_aux || _mppt.is_detected) {
-        uint32_t dt = tnow - _interim_state.last_time_micros;
+        const uint32_t dt_us = tnow - _interim_state.last_time_micros;
 
         // update total current drawn since startup
-        if (_interim_state.last_time_micros != 0 && dt < 2000000) {
-            float mah = calculate_mah(_interim_state.current_amps, dt);
-            _interim_state.consumed_mah += mah;
-            _interim_state.consumed_wh  += 0.001f * mah * _interim_state.voltage;
-        }
+        update_consumed(_interim_state, dt_us);
     }
 
     // record time

@@ -113,6 +113,7 @@ void AP_Frsky_SPort::send(void)
                 }
                 break;
             case SENSOR_ID_RPM: // Sensor ID 4
+#if AP_RPM_ENABLED
                 {
                     const AP_RPM* rpm = AP::rpm();
                     if (rpm == nullptr) {
@@ -132,6 +133,7 @@ void AP_Frsky_SPort::send(void)
                         _SPort.rpm_call = 0;
                     }
                 }
+#endif  // AP_RPM_ENABLED
                 break;
             case SENSOR_ID_SP2UR: // Sensor ID  6
                 switch (_SPort.various_call) {
@@ -246,7 +248,7 @@ extern const AP_HAL::HAL& hal;
 bool AP_Frsky_SPortParser::should_process_packet(const uint8_t *packet, bool discard_duplicates)
 {
     // check for duplicate packets
-    if (discard_duplicates && _parse_state.last_packet != nullptr) {
+    if (discard_duplicates) {
         /*
           Note: the polling byte packet[0] should be ignored in the comparison
           because we might get the same packet with different polling bytes
@@ -323,10 +325,10 @@ bool AP_Frsky_SPortParser::get_packet(AP_Frsky_SPort::sport_packet_t &sport_pack
     }
 
     const AP_Frsky_SPort::sport_packet_t sp {
-        _parse_state.rx_buffer[0],
+        { _parse_state.rx_buffer[0],
         _parse_state.rx_buffer[1],
         le16toh_ptr(&_parse_state.rx_buffer[2]),
-        le32toh_ptr(&_parse_state.rx_buffer[4])
+        le32toh_ptr(&_parse_state.rx_buffer[4]) },
     };
 
     sport_packet = sp;

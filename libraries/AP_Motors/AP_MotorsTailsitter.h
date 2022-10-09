@@ -23,15 +23,12 @@ public:
     // set update rate to motors - a value in hertz
     void set_update_rate( uint16_t speed_hz ) override;
 
-    // spin a motor at the pwm value specified
-    void output_test_seq(uint8_t motor_seq, int16_t pwm) override;
-
     // output_to_motors - sends output to named servos
     void output_to_motors() override;
 
     // get_motor_mask - returns a bitmask of which outputs are being used for motors or servos (1 means being used)
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
-    uint16_t get_motor_mask() override;
+    uint32_t get_motor_mask() override;
 
     // Set by tailsitters using diskloading minumum outflow velocity limit
     void set_min_throttle(float val) {_external_min_throttle = val;}
@@ -41,6 +38,9 @@ protected:
     void output_armed_stabilizing() override;
 
     const char* _get_frame_string() const override { return "TAILSITTER"; }
+
+    // spin a motor at the pwm value specified
+    void _output_test_seq(uint8_t motor_seq, int16_t pwm) override;
 
     // calculated outputs
     float _throttle; // 0..1

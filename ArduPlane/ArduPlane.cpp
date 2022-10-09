@@ -78,33 +78,33 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_BattMonitor, &plane.battery, read,   10, 300,  66),
     SCHED_TASK_CLASS(AP_Baro, &plane.barometer, accumulate,  50, 150,  69),
     SCHED_TASK_CLASS(AP_Notify,      &plane.notify,  update, 50, 300,  72),
-#if AC_FENCE == ENABLED
-    SCHED_TASK_CLASS(AC_Fence,       &plane.fence,   update, 10, 100, 75),
-#endif
     SCHED_TASK(read_rangefinder,       50,    100, 78),
+#if AP_ICENGINE_ENABLED
     SCHED_TASK_CLASS(AP_ICEngine,      &plane.g2.ice_control, update,     10, 100,  81),
-    SCHED_TASK_CLASS(Compass,          &plane.compass,        cal_update, 50,  50,  84),
+#endif
 #if AP_OPTICALFLOW_ENABLED
-    SCHED_TASK_CLASS(OpticalFlow, &plane.optflow, update,    50,    50,  87),
+    SCHED_TASK_CLASS(AP_OpticalFlow, &plane.optflow, update,    50,    50,  87),
 #endif
     SCHED_TASK(one_second_loop,         1,    400,  90),
     SCHED_TASK(three_hz_loop,           3,     75,  93),
     SCHED_TASK(check_long_failsafe,     3,    400,  96),
+#if AP_RPM_ENABLED
     SCHED_TASK_CLASS(AP_RPM,           &plane.rpm_sensor,     update,     10, 100,  99),
+#endif
 #if AP_AIRSPEED_AUTOCAL_ENABLE
     SCHED_TASK(airspeed_ratio_update,   1,    100,  102),
 #endif // AP_AIRSPEED_AUTOCAL_ENABLE
 #if HAL_MOUNT_ENABLED
     SCHED_TASK_CLASS(AP_Mount, &plane.camera_mount, update, 50, 100, 105),
 #endif // HAL_MOUNT_ENABLED
-#if CAMERA == ENABLED
+#if AP_CAMERA_ENABLED
     SCHED_TASK_CLASS(AP_Camera, &plane.camera, update,      50, 100, 108),
 #endif // CAMERA == ENABLED
     SCHED_TASK_CLASS(AP_Scheduler, &plane.scheduler, update_logging,         0.2,    100, 111),
     SCHED_TASK(compass_save,          0.1,    200, 114),
-    SCHED_TASK(Log_Write_Fast,        400,    300, 117),
-    SCHED_TASK(update_logging1,        25,    300, 120),
-    SCHED_TASK(update_logging2,        25,    300, 123),
+    SCHED_TASK(Log_Write_FullRate,        400,    300, 117),
+    SCHED_TASK(update_logging10,        10,    300, 120),
+    SCHED_TASK(update_logging25,        25,    300, 123),
 #if HAL_SOARING_ENABLED
     SCHED_TASK(update_soaring,         50,    400, 126),
 #endif
@@ -127,7 +127,7 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
 #if STATS_ENABLED == ENABLED
     SCHED_TASK_CLASS(AP_Stats, &plane.g2.stats, update, 1, 100, 153),
 #endif
-#if GRIPPER_ENABLED == ENABLED
+#if AP_GRIPPER_ENABLED
     SCHED_TASK_CLASS(AP_Gripper, &plane.g2.gripper, update, 10, 75, 156),
 #endif
 #if LANDING_GEAR_ENABLED == ENABLED
@@ -227,24 +227,29 @@ void Plane::update_compass(void)
 /*
   do 10Hz logging
  */
-void Plane::update_logging1(void)
+void Plane::update_logging10(void)
 {
-    if (should_log(MASK_LOG_ATTITUDE_MED) && !should_log(MASK_LOG_ATTITUDE_FAST)) {
+    bool log_faster = (should_log(MASK_LOG_ATTITUDE_FULLRATE) || should_log(MASK_LOG_ATTITUDE_FAST));
+    if (should_log(MASK_LOG_ATTITUDE_MED) && !log_faster) {
         Log_Write_Attitude();
-    }
-
-    if (should_log(MASK_LOG_ATTITUDE_MED) && !should_log(MASK_LOG_IMU))
-        AP::ins().Write_IMU();
-
-    if (should_log(MASK_LOG_ATTITUDE_MED))
         ahrs.Write_AOA_SSA();
+    } else if (log_faster) {
+        ahrs.Write_AOA_SSA();
+    } 
 }
 
 /*
-  do 10Hz logging - part2
+  do 25Hz logging
  */
-void Plane::update_logging2(void)
+void Plane::update_logging25(void)
 {
+    // MASK_LOG_ATTITUDE_FULLRATE logs at 400Hz, MASK_LOG_ATTITUDE_FAST at 25Hz, MASK_LOG_ATTIUDE_MED logs at 10Hz
+    // highest rate selected wins
+    bool log_faster = should_log(MASK_LOG_ATTITUDE_FULLRATE);
+    if (should_log(MASK_LOG_ATTITUDE_FAST) && !log_faster) {
+        Log_Write_Attitude();
+    }
+
     if (should_log(MASK_LOG_CTUN)) {
         Log_Write_Control_Tuning();
         AP::ins().write_notch_log_messages();
@@ -273,7 +278,7 @@ void Plane::update_logging2(void)
 void Plane::afs_fs_check(void)
 {
     // perform AFS failsafe checks
-#if AC_FENCE == ENABLED
+#if AP_FENCE_ENABLED
     const bool fence_breached = fence.get_breaches() != 0;
 #else
     const bool fence_breached = false;
@@ -296,8 +301,6 @@ void Plane::one_second_loop()
     iomcu.setup_mixing(&rcmap, g.override_channel.get(), g.mixing_gain, g2.manual_rc_mask);
 #endif
 
-    // make it possible to change orientation at runtime
-    ahrs.update_orientation();
 #if HAL_ADSB_ENABLED
     adsb.set_stall_speed_cm(aparm.airspeed_min * 100); // convert m/s to cm/s
     adsb.set_max_speed(aparm.airspeed_max);
@@ -336,11 +339,18 @@ void Plane::one_second_loop()
             // reset the landing altitude correction
             landing.alt_offset = 0;
     }
+
+    // this ensures G_Dt is correct, catching startup issues with constructors
+    // calling the scheduler methods
+    if (!is_equal(1.0f/scheduler.get_loop_rate_hz(), scheduler.get_loop_period_s()) ||
+        !is_equal(G_Dt, scheduler.get_loop_period_s())) {
+        INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+    }
 }
 
 void Plane::three_hz_loop()
 {
-#if AC_FENCE == ENABLED
+#if AP_FENCE_ENABLED
     fence_check();
 #endif
 }
@@ -713,19 +723,20 @@ bool Plane::get_wp_crosstrack_error_m(float &xtrack_error) const
 
 #if AP_SCRIPTING_ENABLED
 // set target location (for use by scripting)
-bool Plane::set_target_location(const Location& target_loc)
+bool Plane::set_target_location(const Location &target_loc)
 {
+    Location loc{target_loc};
+
     if (plane.control_mode != &plane.mode_guided) {
         // only accept position updates when in GUIDED mode
         return false;
     }
-    plane.guided_WP_loc = target_loc;
     // add home alt if needed
-    if (plane.guided_WP_loc.relative_alt) {
-        plane.guided_WP_loc.alt += plane.home.alt;
-        plane.guided_WP_loc.relative_alt = 0;
+    if (loc.relative_alt) {
+        loc.alt += plane.home.alt;
+        loc.relative_alt = 0;
     }
-    plane.set_guided_WP();
+    plane.set_guided_WP(loc);
     return true;
 }
 
@@ -738,6 +749,7 @@ bool Plane::get_target_location(Location& target_loc)
     case Mode::Number::GUIDED:
     case Mode::Number::AUTO:
     case Mode::Number::LOITER:
+    case Mode::Number::TAKEOFF:
 #if HAL_QUADPLANE_ENABLED
     case Mode::Number::QLOITER:
     case Mode::Number::QLAND:
@@ -751,28 +763,56 @@ bool Plane::get_target_location(Location& target_loc)
     }
     return false;
 }
+
+/*
+  update_target_location() works in all auto navigation modes
+ */
+bool Plane::update_target_location(const Location &old_loc, const Location &new_loc)
+{
+    if (!old_loc.same_latlon_as(next_WP_loc)) {
+        return false;
+    }
+    ftype alt_diff;
+    if (!old_loc.get_alt_distance(next_WP_loc, alt_diff) ||
+        !is_zero(alt_diff)) {
+        return false;
+    }
+    next_WP_loc = new_loc;
+    next_WP_loc.change_alt_frame(old_loc.get_alt_frame());
+
+    return true;
+}
+
+// allow for velocity matching in VTOL
+bool Plane::set_velocity_match(const Vector2f &velocity)
+{
+#if HAL_QUADPLANE_ENABLED
+    if (quadplane.in_vtol_mode() || quadplane.in_vtol_land_sequence()) {
+        quadplane.poscontrol.velocity_match = velocity;
+        quadplane.poscontrol.last_velocity_match_ms = AP_HAL::millis();
+        return true;
+    }
+#endif
+    return false;
+}
+
 #endif // AP_SCRIPTING_ENABLED
 
-#if OSD_ENABLED
 // correct AHRS pitch for TRIM_PITCH_CD in non-VTOL modes, and return VTOL view in VTOL
 void Plane::get_osd_roll_pitch_rad(float &roll, float &pitch) const
 {
-   pitch = ahrs.pitch;
-   roll = ahrs.roll;
 #if HAL_QUADPLANE_ENABLED
-   if (quadplane.show_vtol_view()) {
-       return;
-   }
+    if (quadplane.show_vtol_view()) {
+        pitch = quadplane.ahrs_view->pitch;
+        roll = quadplane.ahrs_view->roll;
+        return;
+    }
 #endif
-   if (!(g2.flight_options & FlightOptions::OSD_REMOVE_TRIM_PITCH_CD)) {  // correct for TRIM_PITCH_CD
-      pitch -= g.pitch_trim_cd * 0.01 * DEG_TO_RAD;
-      return;
-   }
-#if HAL_QUADPLANE_ENABLED
-   pitch = quadplane.ahrs_view->pitch;
-   roll = quadplane.ahrs_view->roll;
-#endif
+    pitch = ahrs.pitch;
+    roll = ahrs.roll;
+    if (!(g2.flight_options & FlightOptions::OSD_REMOVE_TRIM_PITCH_CD)) {  // correct for TRIM_PITCH_CD
+        pitch -= g.pitch_trim_cd * 0.01 * DEG_TO_RAD;
+    }
 }
-#endif
 
 AP_HAL_MAIN_CALLBACKS(&plane);

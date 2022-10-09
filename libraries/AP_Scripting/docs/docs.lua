@@ -67,6 +67,117 @@ i2c = {}
 ---@return AP_HAL__I2CDevice_ud
 function i2c:get_device(bus, address, clock, smbus) end
 
+-- EFI state structure
+---@class EFI_State_ud
+local EFI_State_ud = {}
+
+---@return EFI_State_ud
+function EFI_State() end
+
+-- set field
+---@param value Cylinder_Status_ud
+function EFI_State_ud:cylinder_status(value) end
+
+-- set field
+---@param value integer
+function EFI_State_ud:ecu_index(value) end
+
+-- set field
+---@param value integer
+function EFI_State_ud:throttle_position_percent(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:estimated_consumed_fuel_volume_cm3(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:fuel_consumption_rate_cm3pm(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:fuel_pressure(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:oil_temperature(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:oil_pressure(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:coolant_temperature(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:intake_manifold_temperature(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:intake_manifold_pressure_kpa(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:atmospheric_pressure_kpa(value) end
+
+-- set field
+---@param value number
+function EFI_State_ud:spark_dwell_time_ms(value) end
+
+-- set field
+---@param value uint32_t_ud
+function EFI_State_ud:engine_speed_rpm(value) end
+
+-- set field
+---@param value integer
+function EFI_State_ud:engine_load_percent(value) end
+
+-- set field
+---@param value boolean
+function EFI_State_ud:general_error(value) end
+
+-- set field
+---@param value uint32_t_ud
+function EFI_State_ud:last_updated_ms(value) end
+
+
+-- EFI Cylinder_Status structure
+---@class Cylinder_Status_ud
+local Cylinder_Status_ud = {}
+
+---@return Cylinder_Status_ud
+function Cylinder_Status() end
+
+-- set field
+---@param value number
+function Cylinder_Status_ud:lambda_coefficient(value) end
+
+-- set field
+---@param value number
+function Cylinder_Status_ud:exhaust_gas_temperature(value) end
+
+-- set field
+---@param value number
+function Cylinder_Status_ud:cylinder_head_temperature(value) end
+
+-- set field
+---@param value number
+function Cylinder_Status_ud:injection_time_ms(value) end
+
+-- set field
+---@param value number
+function Cylinder_Status_ud:ignition_timing_deg(value) end
+
+-- desc
+---@class efi
+efi = {}
+
+-- EFI handle scripting update
+---@param efi_state EFI_State_ud
+function efi:handle_scripting(efi_state) end
+
 
 -- CAN bus interaction
 ---@class CAN
@@ -296,7 +407,8 @@ function mavlink_mission_item_int_t_ud:param1(value) end
 local Parameter_ud = {}
 
 ---@return Parameter_ud
-function Parameter() end
+---@param name? string
+function Parameter(name) end
 
 -- desc
 ---@param value number
@@ -320,6 +432,17 @@ function Parameter_ud:set(value) end
 -- desc
 ---@return number|nil
 function Parameter_ud:get() end
+
+-- desc
+---@param key integer
+---@param group_element uint32_t_ud
+---@param type integer
+---| '1' # AP_PARAM_INT8
+---| '2' # AP_PARAM_INT16
+---| '3' # AP_PARAM_INT32
+---| '4' # AP_PARAM_FLOAT
+---@return boolean
+function Parameter_ud:init_by_info(key, group_element, type) end
 
 -- desc
 ---@param name string
@@ -377,6 +500,9 @@ function Vector2f_ud:normalize() end
 ---@return number
 function Vector2f_ud:length() end
 
+-- desc
+---@return number
+function Vector2f_ud:angle() end
 
 -- desc
 ---@class Vector3f_ud
@@ -447,6 +573,104 @@ function Vector3f_ud:normalize() end
 ---@return number
 function Vector3f_ud:length() end
 
+-- Computes angle between this vector and vector v2
+---@param v2 Vector3f_ud 
+---@return number
+function Vector3f_ud:angle(v2) end
+
+-- desc
+---@param param1 number -- XY rotation in radians
+function Vector3f_ud:rotate_xy(param1) end
+
+-- desc
+---@return Vector2f_ud
+function Vector3f_ud:xy() end
+
+-- desc
+---@class Quaternion_ud
+local Quaternion_ud = {}
+
+---@return Quaternion_ud
+function Quaternion() end
+
+-- get field
+---@return number
+function Quaternion_ud:q4() end
+
+-- set field
+---@param value number
+function Quaternion_ud:q4(value) end
+
+-- get field
+---@return number
+function Quaternion_ud:q3() end
+
+-- set field
+---@param value number
+function Quaternion_ud:q3(value) end
+
+-- get field
+---@return number
+function Quaternion_ud:q2() end
+
+-- set field
+---@param value number
+function Quaternion_ud:q2(value) end
+
+-- get field
+---@return number
+function Quaternion_ud:q1() end
+
+-- set field
+---@param value number
+function Quaternion_ud:q1(value) end
+
+-- Applies rotation to vector argument
+---@param vec Vector3f_ud
+function Quaternion_ud:earth_to_body(vec) end
+
+-- Returns inverse of quaternion
+---@return Quaternion_ud
+function Quaternion_ud:inverse() end
+
+-- Integrates angular velocity over small time delta
+---@param angular_velocity Vector3f_ud
+---@param time_delta number
+function Quaternion_ud:from_angular_velocity(angular_velocity, time_delta) end
+
+-- Constructs Quaternion from axis and angle
+---@param axis Vector3f_ud
+---@param angle number
+function Quaternion_ud:from_axis_angle(axis, angle) end
+
+-- Converts Quaternion to axis-angle representation
+---@param axis_angle Vector3f_ud
+function Quaternion_ud:to_axis_angle(axis_angle) end
+
+-- Construct quaternion from Euler angles
+---@param roll number
+---@param pitch number
+---@param yaw number
+function Quaternion_ud:from_euler(roll, pitch, yaw) end
+
+-- Returns yaw component of quaternion
+---@return number
+function Quaternion_ud:get_euler_yaw() end
+
+-- Returns pitch component of quaternion
+---@return number
+function Quaternion_ud:get_euler_pitch() end
+
+-- Returns roll component of quaternion
+---@return number
+function Quaternion_ud:get_euler_roll() end
+
+-- Mutates quaternion have length 1
+function Quaternion_ud:normalize() end
+
+-- Returns length or norm of quaternion
+---@return number
+function Quaternion_ud:length() end
 
 -- desc
 ---@class Location_ud
@@ -549,6 +773,12 @@ function Location_ud:get_vector_from_origin_NEU() end
 function Location_ud:offset_bearing(bearing_deg, distance) end
 
 -- desc
+---@param bearing_deg number
+---@param pitch_deg number
+---@param distance number
+function Location_ud:offset_bearing_and_pitch(bearing_deg, pitch_deg, distance) end
+
+-- desc
 ---@param ofs_north number
 ---@param ofs_east number
 function Location_ud:offset(ofs_north, ofs_east) end
@@ -604,10 +834,12 @@ local AP_HAL__I2CDevice_ud = {}
 ---@param address integer
 function AP_HAL__I2CDevice_ud:set_address(address) end
 
--- desc
+-- If no read length is provided a single register will be read and returned.
+-- If read length is provided a table of register values are returned.
 ---@param register_num integer
----@return integer|nil
-function AP_HAL__I2CDevice_ud:read_registers(register_num) end
+---@param read_length? integer
+---@return integer|table|nil
+function AP_HAL__I2CDevice_ud:read_registers(register_num, read_length) end
 
 -- desc
 ---@param register_num integer
@@ -658,13 +890,85 @@ local RC_Channel_ud = {}
 function RC_Channel_ud:norm_input_ignore_trim() end
 
 -- desc
+---@param PWM integer
+function RC_Channel_ud:set_override(PWM) end
+
+-- desc
 ---@return integer
 function RC_Channel_ud:get_aux_switch_pos() end
 
--- desc
+-- desc return input on a channel from -1 to 1, centered on the trim. Ignores the deadzone
 ---@return number
 function RC_Channel_ud:norm_input() end
 
+-- desc return input on a channel from -1 to 1, centered on the trim. Returns zero when within deadzone of the trim
+---@return number
+function RC_Channel_ud:norm_input_dz() end
+
+-- desc
+---@class winch
+winch = {}
+
+-- desc
+---@return number
+function winch:get_rate_max() end
+
+-- desc
+---@param param1 number
+function winch:set_desired_rate(param1) end
+
+-- desc
+---@param param1 number
+function winch:release_length(param1) end
+
+-- desc
+function winch:relax() end
+
+-- desc
+---@return boolean
+function winch:healthy() end
+
+-- desc
+---@class mount
+mount = {}
+
+-- desc
+---@param instance integer
+---@param target_loc Location_ud
+function mount:set_roi_target(instance, target_loc) end
+
+-- desc
+---@param instance integer
+---@param roll_degs number
+---@param pitch_degs number
+---@param yaw_degs number
+---@param yaw_is_earth_frame boolean
+function mount:set_rate_target(instance, roll_degs, pitch_degs, yaw_degs, yaw_is_earth_frame) end
+
+-- desc
+---@param instance integer
+---@param roll_deg number
+---@param pitch_deg number
+---@param yaw_deg number
+---@param yaw_is_earth_frame boolean
+function mount:set_angle_target(instance, roll_deg, pitch_deg, yaw_deg, yaw_is_earth_frame) end
+
+-- desc
+---@param instance integer
+---@param mode integer
+function mount:set_mode(instance, mode) end
+
+-- desc
+---@param instance integer
+---@return integer
+function mount:get_mode(instance) end
+
+-- desc
+---@param instance integer
+---@return number|nil
+---@return number|nil
+---@return number|nil
+function mount:get_attitude_euler(instance, roll_deg, pitch_deg, yaw_bf_deg) end
 
 -- desc
 ---@class motors
@@ -716,6 +1020,9 @@ function periph:get_vehicle_state() end
 ---@return number
 function periph:get_yaw_earth() end
 
+-- desc
+---@param text string
+function periph:can_printf(text) end
 
 -- desc
 ---@class ins
@@ -1044,6 +1351,16 @@ function esc_telem:get_temperature(instance) end
 ---@return number|nil
 function esc_telem:get_rpm(instance) end
 
+-- update RPM for an ESC
+---@param param1 integer -- ESC number
+---@param param2 integer -- RPM
+---@param param3 number -- error rate
+function esc_telem:update_rpm(esc_index, rpm, error_rate) end
+
+-- set scale factor for RPM on a motor
+---@param param1 motor index (0 is first motor)
+---@param param2 scale factor
+function esc_telem:set_rpm_scale(esc_index, scale_factor) end
 
 -- desc
 ---@class optical_flow
@@ -1083,10 +1400,12 @@ function baro:get_pressure() end
 ---@class serial
 serial = {}
 
--- desc
----@param protocol integer
----@return AP_HAL__UARTDriver_ud
-function serial:find_serial(protocol) end
+-- Returns the UART instance that allows connections from scripts (those with SERIALx_PROTOCOL = 28`).
+-- For instance = 0, returns first such UART, second for instance = 1, and so on.
+-- If such an instance is not found, returns nil.
+---@param instance integer -- the 0-based index of the UART instance to return.
+---@return AP_HAL__UARTDriver_ud -- the requested UART instance available for scripting, or nil if none.
+function serial:find_serial(instance) end
 
 
 -- desc
@@ -1299,6 +1618,12 @@ function vehicle:set_target_posvel_NED(target_pos, target_vel) end
 function vehicle:set_target_pos_NED(target_pos, use_yaw, yaw_deg, use_yaw_rate, yaw_rate_degs, yaw_relative, terrain_alt) end
 
 -- desc
+---@param current_target Location_ud -- current target, from get_target_location()
+---@param new_target Location_ud -- new target
+---@return boolean
+function vehicle:update_target_location(current_target, new_target) end
+
+-- desc
 ---@return Location_ud|nil
 function vehicle:get_target_location() end
 
@@ -1346,6 +1671,37 @@ function vehicle:get_mode() end
 ---@return boolean
 function vehicle:set_mode(mode_number) end
 
+-- desc
+---@param param1 Vector2f_ud
+---@return boolean
+function vehicle:set_velocity_match(param1) end
+
+-- desc
+---@param param1 integer
+---@return boolean
+function vehicle:nav_scripting_enable(param1) end
+
+-- desc sets autopilot nav speed (Copter and Rover)
+---@param param1 number
+---@return boolean
+function vehicle:set_desired_speed(param1) end
+
+-- desc
+---@param param1 number
+---@param param2 number
+---@return boolean
+function vehicle:set_desired_turn_rate_and_speed(param1, param2) end
+
+-- desc
+---@param param1 number -- throttle percent
+---@param param2 number -- roll rate deg/s
+---@param param3 number -- pitch rate deg/s
+---@param param4 number -- yaw rate deg/s
+function vehicle:set_target_throttle_rate_rpy(param1, param2, param3, param4) end
+
+-- desc
+---@param param1 integer
+function vehicle:nav_script_time_done(param1) end
 
 -- desc
 ---@class onvif
@@ -1769,6 +2125,10 @@ function arming:is_armed() end
 
 -- desc
 ---@return boolean
+function arming:pre_arm_checks() end
+
+-- desc
+---@return boolean
 function arming:disarm() end
 
 
@@ -1894,4 +2254,38 @@ function ahrs:get_pitch() end
 ---@return number
 function ahrs:get_roll() end
 
+-- desc
+---@class AC_AttitudeControl
+AC_AttitudeControl = {}
 
+-- return slew rates for VTOL controller
+---@return number -- roll slew rate
+---@return number -- pitch slew rate
+---@return number -- yaw slew rate
+function AC_AttitudeControl:get_rpy_srate() end
+
+-- desc
+---@class follow
+follow = {}
+
+-- desc
+---@return number|nil
+function follow:get_target_heading_deg() end
+
+-- desc
+---@return Location_ud|nil
+---@return Vector3f_ud|nil
+function follow:get_target_location_and_velocity_ofs() end
+
+-- desc
+---@return Location_ud|nil
+---@return Vector3f_ud|nil
+function follow:get_target_location_and_velocity() end
+
+-- desc
+---@return uint32_t_ud
+function follow:get_last_update_ms() end
+
+-- desc
+---@return boolean
+function follow:have_target() end

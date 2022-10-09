@@ -9,7 +9,6 @@
 #if HAL_GENERATOR_ENABLED
 
 #include <AP_Param/AP_Param.h>
-#include <GCS_MAVLink/GCS.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>
 
 class AP_Generator_Backend;
@@ -29,8 +28,7 @@ public:
     AP_Generator();
 
     // Do not allow copies
-    AP_Generator(const AP_Generator &other) = delete;
-    AP_Generator &operator=(const AP_Generator&) = delete;
+    CLASS_NO_COPY(AP_Generator);
 
     static AP_Generator* get_singleton();
 
@@ -62,10 +60,19 @@ public:
     bool idle(void);
     bool run(void);
 
-    void send_generator_status(const GCS_MAVLINK &channel);
+    void send_generator_status(const class GCS_MAVLINK &channel);
 
     // Parameter block
     static const struct AP_Param::GroupInfo var_info[];
+
+    // bits which can be set in _options to modify generator behaviour:
+    enum class Option {
+        INHIBIT_MAINTENANCE_WARNINGS = 0,
+    };
+
+    bool option_set(Option opt) const {
+        return (_options & 1U<<uint32_t(opt)) != 0;
+    }
 
 private:
 
@@ -74,6 +81,7 @@ private:
 
     // Parameters
     AP_Int8 _type; // Select which generator to use
+    AP_Int32 _options; // Select which generator to use
 
     enum class Type {
         GEN_DISABLED = 0,

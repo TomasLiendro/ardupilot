@@ -1,5 +1,7 @@
 #pragma once
 
+#include "AP_Compass_config.h"
+
 #include <inttypes.h>
 
 #include <AP_Common/AP_Common.h>
@@ -71,7 +73,7 @@
 #define MAX_CONNECTED_MAGS (COMPASS_MAX_UNREG_DEV+COMPASS_MAX_INSTANCES)
 
 #ifndef AP_SIM_COMPASS_ENABLED
-#define AP_SIM_COMPASS_ENABLED (CONFIG_HAL_BOARD == HAL_BOARD_SITL)
+#define AP_SIM_COMPASS_ENABLED AP_SIM_ENABLED
 #endif
 
 #include "CompassCalibrator.h"
@@ -85,8 +87,7 @@ public:
     Compass();
 
     /* Do not allow copies */
-    Compass(const Compass &other) = delete;
-    Compass &operator=(const Compass&) = delete;
+    CLASS_NO_COPY(Compass);
 
     // get singleton instance
     static Compass *get_singleton() {
@@ -134,8 +135,10 @@ public:
     /// @param  offsets             Offsets to the raw mag_ values in milligauss.
     ///
     void set_and_save_offsets(uint8_t i, const Vector3f &offsets);
+#if AP_COMPASS_DIAGONALS_ENABLED
     void set_and_save_diagonals(uint8_t i, const Vector3f &diagonals);
     void set_and_save_offdiagonals(uint8_t i, const Vector3f &diagonals);
+#endif
     void set_and_save_scale_factor(uint8_t i, float scale_factor);
     void set_and_save_orientation(uint8_t i, Rotation orientation);
 
@@ -213,11 +216,13 @@ public:
     const Vector3f &get_offsets(uint8_t i) const { return _get_state(Priority(i)).offset; }
     const Vector3f &get_offsets(void) const { return get_offsets(_first_usable); }
 
+#ifndef HAL_BUILD_AP_PERIPH
     const Vector3f &get_diagonals(uint8_t i) const { return _get_state(Priority(i)).diagonals; }
     const Vector3f &get_diagonals(void) const { return get_diagonals(_first_usable); }
 
     const Vector3f &get_offdiagonals(uint8_t i) const { return _get_state(Priority(i)).offdiagonals; }
     const Vector3f &get_offdiagonals(void) const { return get_offdiagonals(_first_usable); }
+#endif
 
     // learn offsets accessor
     bool learn_offsets_enabled() const { return _learn == LEARN_INFLIGHT; }
@@ -237,9 +242,8 @@ public:
     bool auto_declination_enabled() const { return _auto_declination != 0; }
 
     // set overall board orientation
-    void set_board_orientation(enum Rotation orientation, Matrix3f* custom_rotation = nullptr) {
+    void set_board_orientation(enum Rotation orientation) {
         _board_orientation = orientation;
-        _custom_rotation = custom_rotation;
     }
 
     /// Set the motor compensation type
@@ -456,12 +460,6 @@ private:
     // board orientation from AHRS
     enum Rotation _board_orientation = ROTATION_NONE;
 
-    // custom board rotation matrix
-    Matrix3f* _custom_rotation;
-
-    // custom external compass rotation matrix
-    Matrix3f* _custom_external_rotation;
-
     // declination in radians
     AP_Float    _declination;
 
@@ -478,11 +476,6 @@ private:
     // automatic compass orientation on calibration
     AP_Int8     _rotate_auto;
 
-    // custom compass rotation
-    AP_Float    _custom_roll;
-    AP_Float    _custom_pitch;
-    AP_Float    _custom_yaw;
-    
     // throttle expressed as a percentage from 0 ~ 1.0, used for motor compensation
     float       _thr;
 
@@ -493,8 +486,10 @@ private:
         Compass::Priority priority;
         AP_Int8     orientation;
         AP_Vector3f offset;
+#ifndef HAL_BUILD_AP_PERIPH
         AP_Vector3f diagonals;
         AP_Vector3f offdiagonals;
+#endif
         AP_Float    scale_factor;
 
         // device id detected at init.

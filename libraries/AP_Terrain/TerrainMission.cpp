@@ -35,7 +35,7 @@ extern const AP_HAL::HAL& hal;
  */
 void AP_Terrain::update_mission_data(void)
 {
-#if HAL_MISSION_ENABLED
+#if AP_MISSION_ENABLED
     const AP_Mission *mission = AP::mission();
     if (mission == nullptr) {
         return;
@@ -95,7 +95,7 @@ void AP_Terrain::update_mission_data(void)
 
         // we have a mission command to check
         float height;
-        if (!height_amsl(cmd.content.location, height, false)) {
+        if (!height_amsl(cmd.content.location, height)) {
             // if we can't get data for a mission item then return and
             // check again next time
             return;
@@ -112,9 +112,10 @@ void AP_Terrain::update_mission_data(void)
             next_mission_pos = 0;
         }
     }
-#endif  // HAL_MISSION_ENABLED
+#endif  // AP_MISSION_ENABLED
 }
 
+#if HAL_RALLY_ENABLED
 /*
   check that we have fetched all rally terrain data
  */
@@ -157,7 +158,7 @@ void AP_Terrain::update_rally_data(void)
         loc.lat = rp.lat;
         loc.lng = rp.lng;
         float height;
-        if (!height_amsl(loc, height, false)) {
+        if (!height_amsl(loc, height)) {
             // if we can't get data for a rally item then return and
             // check again next time
             return;
@@ -171,5 +172,6 @@ void AP_Terrain::update_rally_data(void)
         next_rally_index++;
     }
 }
+#endif
 
 #endif // AP_TERRAIN_AVAILABLE
